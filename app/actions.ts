@@ -1,37 +1,42 @@
 'use server'
 
 import { createClient } from '@supabase/supabase-js'
+import { z } from 'zod'
 
-// 1. Initialize Supabase using your .env.local variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// 1. Define a strict schema for your data
+const BookingSchema = z.object({
+  name: z.string().trim().min(2, "Name is too short").max(50),
+  phone: z.string().regex(/^[0-9]{10}$/, "Invalid 10-digit phone number"),
+  service: z.string().min(1, "Please select a service"),
+  notes: z.string().max(500).optional(),
+})
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export async function submitBooking(formData: FormData) {
-  // 2. Extract data from the form
-  const data = {
-    name: formData.get('name'),
-    phone: formData.get('phone'),
-    service: formData.get('service'),
-    notes: formData.get('notes'),
-    // Supabase usually adds a 'created_at' automatically, 
-    // but you can include timestamp if your table requires it.
-  };
+  // 2. Extract and Validate
+  const rawData = Object.fromEntries(formData.entries())
+  const validatedFields = BookingSchema.safeParse(rawData)
 
-  // 3. Insert into the 'bookings' table in Supabase
-  const { error } = await supabase
-    .from('bookings')
-    .insert([data])
-
-  // 4. Handle Errors
-  if (error) {
-    console.error('Supabase Error:', error.message);
-    return { success: false, error: error.message };
+  if (!validatedFields.success) {
+    return { 
+      success: false, 
+      error: validatedFields.error.flatten().fieldErrors 
+    }
   }
 
-  // 5. Log for your own verification in the terminal
-  console.log('--- DATA SAVED TO SUPABASE ---');
-  console.log(data);
+  // 3. Insert into Supabase
+  const { error } = await supabase
+    .from('bookings')
+    .insert([validatedFields.data])
 
-  return { success: true };
+  if (error) {
+    console.error('Supabase Error:', error.message)
+    return { success: false, error: "Database connection failed" }
+  }
+
+  return { success: true }
 }
