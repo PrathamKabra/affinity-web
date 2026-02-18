@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
+import { revalidatePath } from 'next/cache' // Required to refresh the Admin view
 
 // 1. Define the validation schema
 const BookingSchema = z.object({
@@ -28,6 +29,9 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+/**
+ * Handles new patient bookings from the public form
+ */
 export async function submitBooking(prevState: FormState, formData: FormData): Promise<FormState> {
   const rawData = Object.fromEntries(formData.entries())
   const validatedFields = BookingSchema.safeParse(rawData)
@@ -40,12 +44,31 @@ export async function submitBooking(prevState: FormState, formData: FormData): P
     }
   }
 
-  // 3. Insert into Supabase
-  const { error } = await supabase.from('bookings').insert([validatedFields.data])
+  // 3. Insert into Supabase (include default status for table if it has status column)
+  const { error } = await supabase.from('bookings').insert([{ ...validatedFields.data, status: 'pending' }])
 
   if (error) {
     return { success: false, message: "Clinic database is temporarily offline." }
   }
 
   return { success: true, message: "Appointment request received!" }
+}
+
+/**
+ * Updates the status of an existing booking (Admin only)
+ */
+export async function updateBookingStatus(id: string | number, status: string) {
+  const { error } = await supabase
+    .from('bookings')
+    .update({ status })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Update Error:', error.message);
+    return { success: false };
+  }
+  
+  // This tells Next.js to clear the cache and fetch fresh data for the admin page
+  revalidatePath('/admin');
+  return { success: true };
 }
