@@ -5,13 +5,6 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -20,7 +13,18 @@
 }
 
 body {
+  /* Using CSS variables here allows future dark mode toggling */
+  /* Remove font-family here to allow next/font to control it via layout.tsx */
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Optional: Utility overrides if you want to use the CSS vars with Tailwind classes */
+@layer utilities {
+  .bg-background {
+    background-color: var(--background);
+  }
+  .text-foreground {
+    color: var(--foreground);
+  }
 }
