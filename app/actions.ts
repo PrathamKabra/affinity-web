@@ -57,18 +57,18 @@ export async function submitBooking(prevState: FormState, formData: FormData): P
 /**
  * Updates the status of an existing booking (Admin only)
  */
-export async function updateBookingStatus(id: string | number, status: string) {
+export async function updateBookingStatus(id: number, status: string) {
   const { error } = await supabase
     .from('bookings')
-    .update({ status })
+    .update({ status: status }) // This sends 'confirmed' to the 'status' column
     .eq('id', id);
 
   if (error) {
-    console.error('Update Error:', error.message);
+    console.error('Update failed:', error.message);
     return { success: false };
   }
   
-  // This tells Next.js to clear the cache and fetch fresh data for the admin page
-  revalidatePath('/admin');
+  // This is the magic line. It forces the Admin page to fetch fresh data.
+  revalidatePath('/admin'); 
   return { success: true };
 }
